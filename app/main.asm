@@ -75,6 +75,21 @@ delay_loop:
         ret                      ; Return from subroutine
 
 ;------------------------------------------------------------------------------
+; i2c_scl_delay Subroutine
+;------------------------------------------------------------------------------
+i2c_scl_delay:
+        ; Delay for approximately 100 microseconds. Each ittr takes ~4 cycles (1 NOP + 1 DEC + 2 JNZ)
+        ; I know this isn't going to be perfectly accurate but it should work for now. Total iterations: 25 → 25 * 4 = 100 cycles = 100µs
+
+        mov     #25, R12          ; Initialize loop counter (reusing R12 from sda_delay)
+
+delay_loop:
+        nop                      ; 1 cycle (hehe yep this trick again)
+        dec     R12              ; 1 cycle
+        jnz     delay_loop       ; 2 cycles if not zero
+        ret                      ; Return from subroutine
+
+;------------------------------------------------------------------------------
 ; Interrupt Vectors
 ;------------------------------------------------------------------------------
         .sect   RESET_VECTOR
