@@ -45,6 +45,9 @@ init:
         ; Enable global interrupts
         bis.w   #GIE, SR                             ; I know this gives a warning but it doesn't cause a issue- yet. Will fix if necessary later.
 
+        ; Jump to main
+        jmp     main
+
 ;------------------------------------------------------------------------------
 ; Main loop
 ;------------------------------------------------------------------------------
