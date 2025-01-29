@@ -118,6 +118,35 @@ i2c_start:
         call    i2c_scl_delay    ; Delay after setting SCL low
 
         ret                      ; Return from subroutine
+    
+;------------------------------------------------------------------------------
+; i2c_stop Subroutine
+;------------------------------------------------------------------------------
+i2c_stop:
+        ; I2C Stop Condition
+        ; Flow:
+        ;   1. Set SDA low.
+        ;   2. Set SCL high.
+        ;   3. Call i2c_scl_delay.
+        ;   4. Set SDA high.
+        ;   5. Call i2c_sda_delay.
+
+        ; We might need to verify SCL is low here as well - skipping for now.
+
+        ; Set SDA low
+        bic.b   #BIT1, &P6OUT    ; Set SDA low (P6.1)
+        call    i2c_sda_delay    ; Delay after setting SDA low
+
+        ; Set SCL high
+        bis.b   #BIT0, &P6OUT    ; Set SCL high (P6.0)
+        call    i2c_scl_delay    ; Delay after setting SCL high
+
+        ; Set SDA high
+        bis.b   #BIT1, &P6OUT    ; Set SDA high (P6.1)
+        call    i2c_sda_delay    ; Delay after setting SDA high
+
+        ret                      ; Return from subroutine
+
 
 ;------------------------------------------------------------------------------
 ; Interrupt Vectors
