@@ -43,7 +43,7 @@ init:
         mov.w   #CCIE, &TB0CCTL0                     ; Enable CCR0 interrupt
 
         ; Enable global interrupts
-        bis.w   #GIE, SR                             ; I know this gives a warning but it doesn't cause a issue- yet. Will fix if necessary later.
+        eint                             ; Duh - fixed
 
         ; Jump to main
         jmp     main
@@ -52,7 +52,19 @@ init:
 ; Main loop
 ;------------------------------------------------------------------------------
 main:
-        nop
+        ; Generate I2C Start Condition
+        call    i2c_start
+
+        ; Delay between start and stop to observe the operation
+        call    main_delay
+
+        ; Generate I2C Stop Condition
+        call    i2c_stop
+
+        ; Delay between start and stop to observe the operation
+        call    main_delay
+
+        ; Repeat the loop
         jmp     main
         nop
 
