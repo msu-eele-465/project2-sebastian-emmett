@@ -62,15 +62,15 @@ main:
             ; Generate I2C Start Condition
             call    #i2c_start
 
-            ; Call i2c_tx_0 9 times - 8 for the byte and once for a testing ack - works :D
+            ; Call tx_1 and tx_0 in order to send the hex byte AD with an ack to the AD :D
+            call    #i2c_tx_1
             call    #i2c_tx_0
+            call    #i2c_tx_1
             call    #i2c_tx_0
+            call    #i2c_tx_1
+            call    #i2c_tx_1
             call    #i2c_tx_0
-            call    #i2c_tx_0
-            call    #i2c_tx_0
-            call    #i2c_tx_0
-            call    #i2c_tx_0
-            call    #i2c_tx_0
+            call    #i2c_tx_1
             call    #i2c_tx_0
 
             ; Generate I2C Stop Condition
@@ -201,6 +201,32 @@ i2c_tx_0:
 
         ret                      ; Return from subroutine
 
+;------------------------------------------------------------------------------
+; i2c_tx_1 Subroutine: Transmit a '1' bit on our I2C bus
+;------------------------------------------------------------------------------
+i2c_tx_1:
+        ; Transmit a '1' bit by setting SDA high and toggling SCL
+        ; Flow:
+        ;   1. Set SDA high.
+        ;   2. Call i2c_sda_delay.
+        ;   3. Set SCL high.
+        ;   4. Call i2c_scl_delay.
+        ;   5. Set SCL low.
+        ;   6. Call i2c_scl_delay.
+
+        ; Set SDA high
+        bis.b   #BIT1, &P6OUT    ; Set SDA high
+        call    #i2c_sda_delay    ; Delay after setting SDA high
+
+        ; Set SCL high
+        bis.b   #BIT0, &P6OUT    ; Set SCL high
+        call    #i2c_scl_delay    ; Delay after setting SCL high
+
+        ; Set SCL low
+        bic.b   #BIT0, &P6OUT    ; Set SCL low
+        call    #i2c_scl_delay    ; Delay after setting SCL low
+
+        ret                      ; Return from subroutine
 
 ;------------------------------------------------------------------------------
 ; main_delay Subroutine (TESTING)
