@@ -33,9 +33,9 @@ init:
         ; Configure P1.0 as output
         bis.b   #BIT0, &P1DIR        ; Set P1.0 (bit 0) as output
 
-        ; Configure P6.0 and P6.1 for I2C
-        bis.b   #BIT0 + BIT1, &P6DIR ; Set P6.0 (SCL) and P6.1 (SDA) as outputs
-        bic.b   #BIT0 + BIT1, &P6OUT ; Initialize SCL and SDA to high
+        ; Configure P6.0 (SCL) and P6.1 (SDA) for PUSH-PULL output
+        bis.b   #BIT0 + BIT1, &P6DIR  ; Set P6.0 and P6.1 as outputs
+        bis.b   #BIT0 + BIT1, &P6OUT  ; Drive both pins HIGH initially
 
         ; Configure Timer_B0
         mov.w   #TBSSEL__ACLK+MC__UP+TBCLR, &TB0CTL  ; ACLK, Up mode, Clear
@@ -43,7 +43,9 @@ init:
         mov.w   #CCIE, &TB0CCTL0                     ; Enable CCR0 interrupt
 
         ; Enable global interrupts
-        bis.w   #GIE, SR                             ; I know this gives a warning but it doesn't cause a issue- yet. Will fix if necessary later.
+        nop
+        eint
+        nop
 
         ; Jump to main
         jmp     main
@@ -52,9 +54,21 @@ init:
 ; Main loop
 ;------------------------------------------------------------------------------
 main:
-        nop
-        jmp     main
-        nop
+            ; Generate I2C Start Condition
+            call    #i2c_start
+
+            ; Delay between start and stop (for visibility)
+            call    #main_delay
+
+            ; Generate I2C Stop Condition
+            call    #i2c_stop
+
+            ; Delay again (for visibility)
+            call    #main_delay
+
+            ; Repeat
+            jmp     main
+            nop
 
 ;------------------------------------------------------------------------------
 ; HEARTBEAT : Timer0_B0 : Interrupt Service Routine
@@ -111,11 +125,11 @@ i2c_start:
 
         ; Set SDA low
         bic.b   #BIT1, &P6OUT    ; Set SDA low
-        call    i2c_sda_delay    ; Delay after setting SDA low
+        call    #i2c_sda_delay    ; Delay after setting SDA low
 
         ; Set SCL low
         bic.b   #BIT0, &P6OUT    ; Set SCL low
-        call    i2c_scl_delay    ; Delay after setting SCL low
+        call    #i2c_scl_delay    ; Delay after setting SCL low
 
         ret                      ; Return from subroutine
     
@@ -135,18 +149,32 @@ i2c_stop:
 
         ; Set SDA low
         bic.b   #BIT1, &P6OUT    ; Set SDA low (P6.1)
-        call    i2c_sda_delay    ; Delay after setting SDA low
+        call    #i2c_sda_delay    ; Delay after setting SDA low
 
         ; Set SCL high
         bis.b   #BIT0, &P6OUT    ; Set SCL high (P6.0)
-        call    i2c_scl_delay    ; Delay after setting SCL high
+        call    #i2c_scl_delay    ; Delay after setting SCL high
 
         ; Set SDA high
         bis.b   #BIT1, &P6OUT    ; Set SDA high (P6.1)
-        call    i2c_sda_delay    ; Delay after setting SDA high
+        call    #i2c_sda_delay    ; Delay after setting SDA high
 
         ret                      ; Return from subroutine
 
+;------------------------------------------------------------------------------
+; main_delay Subroutine (TESTING)
+;------------------------------------------------------------------------------
+main_delay:
+        ; Delay for approximately 1 millisecond - Each iter takes ~4 cycles (1 NOP + 1 DEC + 2 JNZ)
+        ; Total iterations: 250 → 250 * 4 = 1000 cycles = 1ms
+
+        mov     #250, R13          ; Initialize loop counter
+
+delay_loop_main:
+        nop                      ; 1 cycle
+        dec     R13              ; 1 cycle
+        jnz     delay_loop_main  ; 2 cycles if not zero
+        ret                      ; Return from subroutine
 
 ;------------------------------------------------------------------------------
 ; Interrupt Vectors
