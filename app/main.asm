@@ -62,7 +62,7 @@ main:
             ; Generate I2C Start Condition
             call    #i2c_start
 
-            ; Call tx_1 and tx_0 in order to send the hex byte AD with an ack to the AD :D
+            ; Call tx_1 and tx_0 in order to send the hex byte AD as well as tx_ack to the AD :D
             call    #i2c_tx_1
             call    #i2c_tx_0
             call    #i2c_tx_1
@@ -71,7 +71,7 @@ main:
             call    #i2c_tx_1
             call    #i2c_tx_0
             call    #i2c_tx_1
-            call    #i2c_tx_0
+            call    #i2c_tx_ack
 
             ; Generate I2C Stop Condition
             call    #i2c_stop
@@ -225,6 +225,19 @@ i2c_tx_1:
         ; Set SCL low
         bic.b   #BIT0, &P6OUT    ; Set SCL low
         call    #i2c_scl_delay    ; Delay after setting SCL low
+
+        ret                      ; Return from subroutine
+
+;------------------------------------------------------------------------------
+; i2c_tx_ack Subroutine: Transmit a '0' bit on our I2C bus for the acknowledge
+;------------------------------------------------------------------------------
+i2c_tx_ack:
+        ; Transmit a '0' by just calling our i2c_tx_0 lmao
+        ; Flow:
+        ;   1. Call i2c_tx_0
+
+        ; Set SDA high
+        call    #i2c_tx_0        ; Call i2c_tx_0 to send a 0
 
         ret                      ; Return from subroutine
 
