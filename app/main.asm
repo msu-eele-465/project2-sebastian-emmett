@@ -302,6 +302,22 @@ ACK_DONE:
         ret                       ; Return from subroutine
 
 ;------------------------------------------------------------------------------
+; i2c_send_address Subroutine: Send 7-bit I2C Device Address
+;------------------------------------------------------------------------------
+i2c_send_address:
+        ; Send the 7-bit I2C device address one bit at a time
+        ; Flow:
+        ;   1.  Initialize loop counter to 7.
+        ;   2.  Loop 7 times:
+        ;       a.  Check MSB of device_address.
+        ;       b.  If 0, call i2c_tx_0.
+        ;           If 1, call i2c_tx_1.
+        ;       c.  Rotate device_address left with carry.
+        ;   3.  Repeat until all 7 address bits are sent.
+
+        ret                              ; Return from subroutine
+
+;------------------------------------------------------------------------------
 ; main_delay Subroutine (TESTING)
 ;------------------------------------------------------------------------------
 main_delay:
@@ -332,3 +348,6 @@ delay_loop_main:
         .global acknowledge
 acknowledge:                        ; Yes I know it's a whole byte but I'm pretty sure a bit would be allocated the same space iirc
         .byte   0                   ; Initialize 'acknowledge' to 0 since nothing has been recieved yet
+
+device_address:
+        .byte   0xD0                ; Default address for our DS3231 (7-bit: 0x68 shifted left by 1)
