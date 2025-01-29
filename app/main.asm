@@ -27,15 +27,20 @@ init:
         ; Stop the watchdog timer
         mov.w   #WDTPW+WDTHOLD, &WDTCTL
 
-        ; Disable the GPIO high-impedance mode (low-power mode)
-        bic.w   #LOCKLPM5, &PM5CTL0
-
         ; Configure P1.0 as output
         bis.b   #BIT0, &P1DIR        ; Set P1.0 (bit 0) as output
 
         ; Configure P6.0 (SCL) and P6.1 (SDA) for PUSH-PULL output
         bis.b   #BIT0 + BIT1, &P6DIR  ; Set P6.0 and P6.1 as outputs
         bis.b   #BIT0 + BIT1, &P6OUT  ; Drive both pins HIGH initially
+
+        ; Explicitly select digital I/O for P6.0 and P6.1
+        ; Clear P6SEL0 and P6SEL1 bits to select GPIO function
+        bic.b   #BIT0 + BIT1, &P6SEL0 ; Clear P6SEL0 for P6.0 and P6.1
+        bic.b   #BIT0 + BIT1, &P6SEL1 ; Clear P6SEL1 for P6.0 and P6.1
+
+        ; Disable the GPIO high-impedance mode after GPIO config (low-power mode)
+        bic.w   #LOCKLPM5, &PM5CTL0
 
         ; Configure Timer_B0
         mov.w   #TBSSEL__ACLK+MC__UP+TBCLR, &TB0CTL  ; ACLK, Up mode, Clear
