@@ -75,10 +75,10 @@ i2c_sda_delay:
 
         mov     #25, R12          ; Initialize loop counter
 
-delay_loop:
+delay_loop_sda:
         nop                      ; 1 cycle (hehe I like this trick)
         dec     R12              ; 1 cycle
-        jnz     delay_loop       ; 2 cycles if not zero
+        jnz     delay_loop_sda   ; 2 cycles if not zero
         ret                      ; Return from subroutine
 
 ;------------------------------------------------------------------------------
@@ -90,10 +90,10 @@ i2c_scl_delay:
 
         mov     #25, R12          ; Initialize loop counter (reusing R12 from sda_delay)
 
-delay_loop:
+delay_loop_scl:
         nop                      ; 1 cycle (hehe yep this trick again)
         dec     R12              ; 1 cycle
-        jnz     delay_loop       ; 2 cycles if not zero
+        jnz     delay_loop_scl   ; 2 cycles if not zero
         ret                      ; Return from subroutine
 
 ;------------------------------------------------------------------------------
