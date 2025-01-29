@@ -147,6 +147,20 @@ i2c_stop:
 
         ret                      ; Return from subroutine
 
+;------------------------------------------------------------------------------
+; main_delay Subroutine (TESTING)
+;------------------------------------------------------------------------------
+main_delay:
+        ; Delay for approximately 1 millisecond - Each iter takes ~4 cycles (1 NOP + 1 DEC + 2 JNZ)
+        ; Total iterations: 250 → 250 * 4 = 1000 cycles = 1ms
+
+        mov     #250, R13          ; Initialize loop counter
+
+delay_loop_main:
+        nop                      ; 1 cycle
+        dec     R13              ; 1 cycle
+        jnz     delay_loop_main  ; 2 cycles if not zero
+        ret                      ; Return from subroutine
 
 ;------------------------------------------------------------------------------
 ; Interrupt Vectors
