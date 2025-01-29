@@ -33,6 +33,10 @@ init:
         ; Configure P1.0 as output
         bis.b   #BIT0, &P1DIR        ; Set P1.0 (bit 0) as output
 
+        ; Configure P6.0 and P6.1 for I2C
+        bis.b   #BIT0 + BIT1, &P6DIR ; Set P6.0 (SCL) and P6.1 (SDA) as outputs
+        bic.b   #BIT0 + BIT1, &P6OUT ; Initialize SCL and SDA to high
+
         ; Configure Timer_B0
         mov.w   #TBSSEL__ACLK+MC__UP+TBCLR, &TB0CTL  ; ACLK, Up mode, Clear
         mov.w   #32800, &TB0CCR0                     ; Set period for 1 second at ~32.800kHz (32.767 was slightly too slow)
