@@ -33,6 +33,10 @@ init:
         ; Configure P1.0 as output
         bis.b   #BIT0, &P1DIR        ; Set P1.0 (bit 0) as output
 
+        ; Configure P6.0 and P6.1 for I2C
+        bis.b   #BIT0 + BIT1, &P6DIR ; Set P6.0 (SCL) and P6.1 (SDA) as outputs
+        bic.b   #BIT0 + BIT1, &P6OUT ; Initialize SCL and SDA to high
+
         ; Configure Timer_B0
         mov.w   #TBSSEL__ACLK+MC__UP+TBCLR, &TB0CTL  ; ACLK, Up mode, Clear
         mov.w   #32800, &TB0CCR0                     ; Set period for 1 second at ~32.800kHz (32.767 was slightly too slow)
@@ -40,6 +44,9 @@ init:
 
         ; Enable global interrupts
         bis.w   #GIE, SR                             ; I know this gives a warning but it doesn't cause a issue- yet. Will fix if necessary later.
+
+        ; Jump to main
+        jmp     main
 
 ;------------------------------------------------------------------------------
 ; Main loop
@@ -68,10 +75,10 @@ i2c_sda_delay:
 
         mov     #25, R12          ; Initialize loop counter
 
-delay_loop:
+delay_loop_sda:
         nop                      ; 1 cycle (hehe I like this trick)
         dec     R12              ; 1 cycle
-        jnz     delay_loop       ; 2 cycles if not zero
+        jnz     delay_loop_sda   ; 2 cycles if not zero
         ret                      ; Return from subroutine
 
 ;------------------------------------------------------------------------------
@@ -83,10 +90,33 @@ i2c_scl_delay:
 
         mov     #25, R12          ; Initialize loop counter (reusing R12 from sda_delay)
 
-delay_loop:
+delay_loop_scl:
         nop                      ; 1 cycle (hehe yep this trick again)
         dec     R12              ; 1 cycle
-        jnz     delay_loop       ; 2 cycles if not zero
+        jnz     delay_loop_scl   ; 2 cycles if not zero
+        ret                      ; Return from subroutine
+
+;------------------------------------------------------------------------------
+; i2c_start Subroutine
+;------------------------------------------------------------------------------
+i2c_start:
+        ; I2C Start Condition
+        ; Flow as we defined in our flowcharts:
+        ;   1. Set SDA low.
+        ;   2. Call i2c_sda_delay.
+        ;   3. Set SCL low.
+        ;   4. Call i2c_scl_delay.
+
+        ; At some point we might need to ensure SDA is alr high here but ignoring for now
+
+        ; Set SDA low
+        bic.b   #BIT1, &P6OUT    ; Set SDA low
+        call    i2c_sda_delay    ; Delay after setting SDA low
+
+        ; Set SCL low
+        bic.b   #BIT0, &P6OUT    ; Set SCL low
+        call    i2c_scl_delay    ; Delay after setting SCL low
+
         ret                      ; Return from subroutine
 
 ;------------------------------------------------------------------------------
