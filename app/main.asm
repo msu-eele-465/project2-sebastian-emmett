@@ -97,6 +97,29 @@ delay_loop_scl:
         ret                      ; Return from subroutine
 
 ;------------------------------------------------------------------------------
+; i2c_start Subroutine
+;------------------------------------------------------------------------------
+i2c_start:
+        ; I2C Start Condition
+        ; Flow as we defined in our flowcharts:
+        ;   1. Set SDA low.
+        ;   2. Call i2c_sda_delay.
+        ;   3. Set SCL low.
+        ;   4. Call i2c_scl_delay.
+
+        ; At some point we might need to ensure SDA is alr high here but ignoring for now
+
+        ; Set SDA low
+        bic.b   #BIT1, &P6OUT    ; Set SDA low
+        call    i2c_sda_delay    ; Delay after setting SDA low
+
+        ; Set SCL low
+        bic.b   #BIT0, &P6OUT    ; Set SCL low
+        call    i2c_scl_delay    ; Delay after setting SCL low
+
+        ret                      ; Return from subroutine
+
+;------------------------------------------------------------------------------
 ; Interrupt Vectors
 ;------------------------------------------------------------------------------
         .sect   RESET_VECTOR
