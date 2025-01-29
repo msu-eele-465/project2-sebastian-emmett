@@ -242,6 +242,66 @@ i2c_tx_ack:
         ret                      ; Return from subroutine
 
 ;------------------------------------------------------------------------------
+; i2c_rx_ack Subroutine: Receive ACK bit from I2C slave
+;------------------------------------------------------------------------------
+i2c_rx_ack:
+        ; Receive the acknowledgment bit from the I2C slave device after sending a byte
+        ; Flow:
+        ;   1.  Configure SDA as input.
+        ;   2.  Release SDA (set high).
+        ;   3.  Call i2c_sda_delay.
+        ;   4.  Set SCL high to clock the ACK bit.
+        ;   5.  Call i2c_scl_delay.
+        ;   6.  Read SDA.
+        ;   7.  Store ACK status in 'acknowledge'. - Admittedly more complicated than we first thought lol : need to update flowchart
+        ;   8.  Set SCL low.
+        ;   9.  Call i2c_scl_delay.
+        ;   10. Configure SDA back to output.
+
+        ; 1. Configure SDA as input
+        bic.b   #BIT1, &P6DIR    ; Set P6.1 as input
+
+        ; 2. Release SDA (set high)
+        bis.b   #BIT1, &P6OUT    ; Release SDA (set high)
+
+        ; 3. Call i2c_sda_delay
+        call    #i2c_sda_delay
+
+        ; 4. Set SCL high to clock the ACK bit
+        bis.b   #BIT0, &P6OUT    ; Set P6.0 (SCL) high
+
+        ; 5. Call i2c_scl_delay
+        call    #i2c_scl_delay
+
+        ; Okay now here is where I don't know if this approach will work. Does the slave
+        ; hold SDA high until the clock cycles? I'd assume so and if so this will work.
+        ; If they only hold it for some amount of time this is going to need reworked.
+        ; Not exactly easy to test right now but will later.
+
+        ; 6. Read SDA (bitwise AND - easiest approach imo)
+        bit.b   #BIT1, &P6IN      ; Test P6.1 (SDA)
+
+        ; 7. Store ACK status in 'acknowledge'
+        jz      ACK_RECEIVED      ; If SDA is low, ACK received
+        mov.b   #1, &acknowledge  ; Set 'acknowledge' to 1 (NACK)
+        jmp     ACK_DONE
+
+ACK_RECEIVED:
+        mov.b   #0, &acknowledge  ; Set 'acknowledge' to 0 (ACK)
+
+ACK_DONE:
+        ; 8. Set SCL low
+        bic.b   #BIT0, &P6OUT     ; Clear P6.0 (SCL) low
+
+        ; 9. Call i2c_scl_delay
+        call    #i2c_scl_delay
+
+        ; 10. Configure SDA back to output
+        bis.b   #BIT1, &P6DIR     ; Set P6.1 as output
+
+        ret                       ; Return from subroutine
+
+;------------------------------------------------------------------------------
 ; main_delay Subroutine (TESTING)
 ;------------------------------------------------------------------------------
 main_delay:
@@ -264,3 +324,11 @@ delay_loop_main:
 
         .sect   TIMER0_B0_VECTOR
         .short  TIMER0_B0_ISR
+
+;------------------------------------------------------------------------------
+; Data Section: Define Variables :D
+;------------------------------------------------------------------------------
+        .sect   .data
+        .global acknowledge
+acknowledge:                        ; Yes I know it's a whole byte but I'm pretty sure a bit would be allocated the same space iirc
+        .byte   0                   ; Initialize 'acknowledge' to 0 since nothing has been recieved yet
