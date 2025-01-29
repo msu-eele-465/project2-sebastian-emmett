@@ -63,15 +63,20 @@ main:
             call    #i2c_start
 
             ; Call tx_1 and tx_0 in order to send the hex byte AD as well as tx_ack to the AD :D
+            ; call    #i2c_tx_1
+            ; call    #i2c_tx_0
+            ; call    #i2c_tx_1
+            ; call    #i2c_tx_0
+            ; call    #i2c_tx_1
+            ; call    #i2c_tx_1
+            ; call    #i2c_tx_0
+            ; call    #i2c_tx_1
+            ; call    #i2c_tx_ack
+
+            ; Call send_address and call tx_1 (temp until we get i2c_send_write_bit), then call rx_ack. Should be seen as D1 (11010001) with a nack
+            call    #i2c_send_address
             call    #i2c_tx_1
-            call    #i2c_tx_0
-            call    #i2c_tx_1
-            call    #i2c_tx_0
-            call    #i2c_tx_1
-            call    #i2c_tx_1
-            call    #i2c_tx_0
-            call    #i2c_tx_1
-            call    #i2c_tx_ack
+            call    #i2c_rx_ack
 
             ; Generate I2C Stop Condition
             call    #i2c_stop
@@ -302,6 +307,49 @@ ACK_DONE:
         ret                       ; Return from subroutine
 
 ;------------------------------------------------------------------------------
+; i2c_send_address Subroutine: Send 7-bit I2C Device Address
+;------------------------------------------------------------------------------
+i2c_send_address:
+        ; Send the 7-bit I2C device address one bit at a time
+        ; Flow:
+        ;   1.  Initialize loop counter to 7.
+        ;   2.  Loop 7 times:
+        ;       a.  Check MSB of device_address.
+        ;       b.  If 0, call i2c_tx_0.
+        ;           If 1, call i2c_tx_1.
+        ;       c.  Rotate device_address left with carry.
+        ;   3.  Repeat until all 7 address bits are sent.
+
+        mov.b   &device_address, R14    ; Load device_address into R14
+        mov     #7, R15                  ; Initialize loop counter to 7
+
+send_address_loop:
+        ; a. Check MSB (bit 6) of device_address
+        ; Since device_address is 7-bit, MSB is bit 6
+        bit.b   #BIT6, R14              ; Test bit 6 of R14
+        jnz     send_bit_1               ; If bit 6 is 1, jump to send_bit_1
+
+        ; b. If bit 6 is 0, transmit a 0 :D
+        call    #i2c_tx_0
+
+        jmp     rotate_address           ; Jump to rotate_address
+
+send_bit_1:
+        ; b. If bit 6 is 1, transmit a 1 :D
+        call    #i2c_tx_1
+
+rotate_address:
+        ; c. Rotate device_address left with carry
+        rlc.b   R14                      ; Rotate left through carry
+        ; mov.b   R14, &device_address   ; Store rotated value back to device_address
+        ; Leaving the above out since I'm not sure we want to actually update it or not.
+
+        dec     R15                      ; Decrement loop counter
+        jnz     send_address_loop        ; If not zero, continue loop
+
+        ret                              ; Return from subroutine
+
+;------------------------------------------------------------------------------
 ; main_delay Subroutine (TESTING)
 ;------------------------------------------------------------------------------
 main_delay:
@@ -332,3 +380,6 @@ delay_loop_main:
         .global acknowledge
 acknowledge:                        ; Yes I know it's a whole byte but I'm pretty sure a bit would be allocated the same space iirc
         .byte   0                   ; Initialize 'acknowledge' to 0 since nothing has been recieved yet
+
+device_address:
+        .byte   0x68                ; Default address for our DS3231
