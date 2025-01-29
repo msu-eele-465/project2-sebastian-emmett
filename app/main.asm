@@ -43,7 +43,9 @@ init:
         mov.w   #CCIE, &TB0CCTL0                     ; Enable CCR0 interrupt
 
         ; Enable global interrupts
+        nop
         eint
+        nop
 
         ; Jump to main
         jmp     main
