@@ -242,6 +242,26 @@ i2c_tx_ack:
         ret                      ; Return from subroutine
 
 ;------------------------------------------------------------------------------
+; i2c_rx_ack Subroutine: Receive ACK bit from I2C slave
+;------------------------------------------------------------------------------
+i2c_rx_ack:
+        ; Receive the acknowledgment bit from the I2C slave device after sending a byte
+        ; Flow:
+        ;   1.  Configure SDA as input.
+        ;   2.  Release SDA (set high).
+        ;   3.  Call i2c_sda_delay.
+        ;   4.  Set SCL high to clock the ACK bit.
+        ;   5.  Call i2c_scl_delay.
+        ;   6.  Read SDA.
+        ;   7.  Store ACK status in 'acknowledge'.
+        ;   8.  Set SCL low.
+        ;   9.  Call i2c_scl_delay.
+        ;   10. Configure SDA back to output.
+
+        ret                      ; Return from subroutine
+
+
+;------------------------------------------------------------------------------
 ; main_delay Subroutine (TESTING)
 ;------------------------------------------------------------------------------
 main_delay:
@@ -264,3 +284,11 @@ delay_loop_main:
 
         .sect   TIMER0_B0_VECTOR
         .short  TIMER0_B0_ISR
+
+;------------------------------------------------------------------------------
+; Data Section: Define Variables :D
+;------------------------------------------------------------------------------
+        .sect   .data
+        .global acknowledge
+acknowledge:
+        .byte   0                   ; Initialize 'acknowledge' to 0 since nothing has been recieved yet
