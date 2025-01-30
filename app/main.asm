@@ -61,6 +61,7 @@ init:
 main:
 
 			call	#i2c_read
+			call	#i2c_write
 
 main_stop:
 
@@ -526,6 +527,45 @@ i2c_read_stop:
         ret
 
 ;------------------------------------------------------------------------------
+; i2c_write Subroutine: Write a byte to the desired register
+;
+; device_address, target_register, and new_value should be set up before calling this
+;
+; new_value will contain the byte to write to the register
+;------------------------------------------------------------------------------
+i2c_write:
+i2c_write_header_write:
+
+    	; generate I2C start condition
+        call    #i2c_start
+
+		; send i2c header information for write operation
+        call    #i2c_send_address
+        call    #i2c_send_write_bit
+
+        bit.b	#BIT0, &acknowledge			; verify acknowledge value
+        jz		i2c_write_continue			; if acknowledged, continue
+        									; otherwise, resend the header after a stop condition
+
+        ; generate I2C stop condition, before resending the same header
+        call	#i2c_stop
+        jmp		i2c_read_header_write
+
+i2c_write_continue:
+		; set up register
+		mov.b	target_register, transmit_value		; prepare to send desired register to write to
+
+		call	#i2c_tx_byte				; send register to write to
+
+		; write to register
+		mov.b	new_value, transmit_value	; prepare to send desired value
+
+		call	#i2c_tx_byte				; send value to register
+		call	#i2c_stop					; end write operation
+
+        ret
+
+;------------------------------------------------------------------------------
 ; main_delay Subroutine (TESTING)
 ;------------------------------------------------------------------------------
 main_delay:
@@ -564,7 +604,7 @@ target_register:
 		.byte	0					; which register should an i2c read or write operation target
 
 new_value:
-		.byte	0					; what value should be written during an i2c write operation
+		.byte	10					; what value should be written during an i2c write operation
 
 transmit_value:
 		.byte	0x42				; what value should tx_byte transmit
