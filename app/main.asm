@@ -59,31 +59,10 @@ init:
 ; Main loop
 ;------------------------------------------------------------------------------
 main:
-            ; Generate I2C Start Condition
-            call    #i2c_start
 
-            call    #i2c_send_address
-            call    #i2c_send_read_bit
-
-            bit.b	#BIT0, &acknowledge
-	        jnz		main_stop
-
-            call    #i2c_rx_byte
-            call    #i2c_tx_ack
-            call    #i2c_rx_byte
-            
-            call    #i2c_tx_nack
-
-            ; Call send_address and call tx_1 (temp until we get i2c_send_write_bit), then call rx_ack. Should be seen as D1 (11010001) with a nack
-
-            bit.b	#BIT0, &acknowledge
-	        jnz		main_stop						; acknowledge not received, repeat main
-            call    #main_delay
+			call	#i2c_read
 
 main_stop:
-
-            ; Generate I2C Stop Condition
-            call    #i2c_stop
 
             ; Delay again (for visibility)
             call    #main_delay
@@ -485,6 +464,64 @@ i2c_send_write_bit:
         call	#i2c_tx_0		; transmit a 0 over the i2c line, which corresponds to a write request
 
         call	#i2c_rx_ack		; wait for an acknowledge from the slave device
+
+        ret
+
+;------------------------------------------------------------------------------
+; i2c_read Subroutine: Read a byte from the desired register
+;
+; device_address and target_register should be set up before calling this
+;
+; output_value will store the read value
+;------------------------------------------------------------------------------
+i2c_read:
+i2c_read_header_write:
+
+    	; generate I2C start condition
+        call    #i2c_start
+
+		; send i2c header information for write operation
+        call    #i2c_send_address
+        call    #i2c_send_write_bit
+
+        bit.b	#BIT0, &acknowledge			; verify acknowledge value
+        jz		i2c_read_register_select	; if acknowledged, continue
+        									; otherwise, resend the header after a stop condition
+
+        ; generate I2C stop condition, before resending the same header
+        call	#i2c_stop
+        jmp		i2c_read_header_write
+
+i2c_read_register_select:
+		mov.b	target_register, transmit_value		; prepare to send desired register to read from
+
+		call	#i2c_tx_byte				; send register to read from
+		call	#i2c_stop					; end write operation
+
+i2c_read_header_read:
+		; generate I2C start condition
+        call    #i2c_start
+
+		; send i2c header information for read operation
+        call    #i2c_send_address
+        call    #i2c_send_read_bit
+
+        bit.b	#BIT0, &acknowledge			; verify acknowledge value
+        jz		i2c_read_register_read		; if acknowledged, continue
+        									; otherwise, resend the header after a stop condition
+
+        ; generate I2C stop condition, before resending the same header
+        call	#i2c_stop
+        jmp		i2c_read_header_read
+
+i2c_read_register_read:
+        call    #i2c_rx_byte				; read value from register
+        call    #i2c_tx_nack				; transmit NACK, since we only want 1 register's value
+
+i2c_read_stop:
+
+		; generate I2C stop condition
+        call    #i2c_stop
 
         ret
 
