@@ -62,25 +62,23 @@ main:
             ; Generate I2C Start Condition
             call    #i2c_start
 
-            ; Call tx_1 and tx_0 in order to send the hex byte AD as well as tx_ack to the AD :D
-            ; call    #i2c_tx_1
-            ; call    #i2c_tx_0
-            ; call    #i2c_tx_1
-            ; call    #i2c_tx_0
-            ; call    #i2c_tx_1
-            ; call    #i2c_tx_1
-            ; call    #i2c_tx_0
-            ; call    #i2c_tx_1
-            ; call    #i2c_tx_ack
-
-            ; Call send_address and call tx_1 (temp until we get i2c_send_write_bit), then call rx_ack. Should be seen as D1 (11010001) with a nack
             call    #i2c_send_address
             call    #i2c_send_read_bit
 
             bit.b	#BIT0, &acknowledge
-	        jnz		main_stop						; acknowledge not received, repeat main
+	        jnz		main_stop
 
-            call	#i2c_rx_byte
+            call    #i2c_rx_byte
+            call    #i2c_tx_ack
+            call    #i2c_rx_byte
+            
+            call    #i2c_tx_nack
+
+            ; Call send_address and call tx_1 (temp until we get i2c_send_write_bit), then call rx_ack. Should be seen as D1 (11010001) with a nack
+
+            bit.b	#BIT0, &acknowledge
+	        jnz		main_stop						; acknowledge not received, repeat main
+            call    #main_delay
 
 main_stop:
 
@@ -147,6 +145,11 @@ i2c_start:
 
         ; At some point we might need to ensure SDA is alr high here but ignoring for now
 
+
+        ; Set SCL high
+        bis.b   #BIT0, &P6OUT    ; Set SCL high (P6.0)
+        call    #i2c_scl_delay    ; Delay after setting SCL high
+
         ; Set SDA low
         bic.b   #BIT1, &P6OUT    ; Set SDA low
         call    #i2c_sda_delay    ; Delay after setting SDA low
@@ -170,6 +173,10 @@ i2c_stop:
         ;   5. Call i2c_sda_delay.
 
         ; We might need to verify SCL is low here as well - skipping for now.
+
+        ; Set SCL low
+        bic.b   #BIT0, &P6OUT    ; Set SCL low
+        call    #i2c_scl_delay    ; Delay after setting SCL low
 
         ; Set SDA low
         bic.b   #BIT1, &P6OUT    ; Set SDA low (P6.1)
@@ -197,6 +204,10 @@ i2c_tx_0:
         ;   4. Call i2c_scl_delay.
         ;   5. Set SCL low.
         ;   6. Call i2c_scl_delay.
+        
+        ; Set SCL low
+        bic.b   #BIT0, &P6OUT    ; Set SCL low
+        call    #i2c_scl_delay    ; Delay after setting SCL low
 
         ; Set SDA low
         bic.b   #BIT1, &P6OUT    ; Set SDA low
@@ -225,6 +236,10 @@ i2c_tx_1:
         ;   5. Set SCL low.
         ;   6. Call i2c_scl_delay.
 
+        ; Set SCL low
+        bic.b   #BIT0, &P6OUT    ; Set SCL low
+        call    #i2c_scl_delay    ; Delay after setting SCL low
+
         ; Set SDA high
         bis.b   #BIT1, &P6OUT    ; Set SDA high
         call    #i2c_sda_delay    ; Delay after setting SDA high
@@ -247,8 +262,19 @@ i2c_tx_ack:
         ; Flow:
         ;   1. Call i2c_tx_0
 
-        ; Set SDA high
         call    #i2c_tx_0        ; Call i2c_tx_0 to send a 0
+
+        ret                      ; Return from subroutine
+
+;------------------------------------------------------------------------------
+; i2c_tx_nack Subroutine: Transmit a '1' bit on our I2C bus for the NOT acknowledge
+;------------------------------------------------------------------------------
+i2c_tx_nack:
+        ; Transmit a '1' by just calling our i2c_tx_1 lmao
+        ; Flow:
+        ;   1. Call i2c_tx_1
+
+        call    #i2c_tx_1        ; Call i2c_tx_1 to send a 1
 
         ret                      ; Return from subroutine
 
@@ -433,7 +459,10 @@ i2c_rx_byte_noinc:
         bis.b	#BIT1, &P6DIR	; set as output
         bic.b	#BIT1, &P6REN	; disable resistor (not sure if this needs to be disabled)
 
-        call	#i2c_tx_ack					; transmit acknowledge
+        call    #i2c_scl_delay
+
+        ; NOTE: Cannot tx ack unless we're NOT done sending data. tx_ack logic should be outside this subroutine.
+        ; call	#i2c_tx_ack					; transmit acknowledge DONT DO THIS HERE
 
         ret
 
@@ -501,7 +530,7 @@ new_value:
 		.byte	0					; what value should be written during an i2c write operation
 
 transmit_value:
-		.byte	0x69				; what value should tx_byte transmit
+		.byte	0x42				; what value should tx_byte transmit
 
 output_value:
 		.byte	0					; output of i2c read operation
