@@ -75,8 +75,7 @@ main:
 
             ; Call send_address and call tx_1 (temp until we get i2c_send_write_bit), then call rx_ack. Should be seen as D1 (11010001) with a nack
             call    #i2c_send_address
-            call    #i2c_tx_1
-            call    #i2c_rx_ack
+            call    #i2c_send_read_bit
 
             call	#i2c_tx_byte
 
@@ -383,6 +382,17 @@ i2c_tx_byte_rotate:
 
         jnz		i2c_tx_byte					; acknowledge not received, repeat subroutine
         									; otherwise, ackowledge received, terminate subroutine
+
+        ret
+
+;------------------------------------------------------------------------------
+; i2c_send_read_bit Subroutine: Send the 8th bit in the i2c header as a 1
+;------------------------------------------------------------------------------
+i2c_send_read_bit:
+
+        call	#i2c_tx_1		; transmit a 1 over the i2c line, which corresponds to a read request
+
+        call	#i2c_rx_ack		; wait for an acknowledge from the slave device
 
         ret
 
