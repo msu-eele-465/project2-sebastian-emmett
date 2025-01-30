@@ -78,6 +78,8 @@ main:
             call    #i2c_tx_1
             call    #i2c_rx_ack
 
+            call	#i2c_tx_byte
+
             ; Generate I2C Stop Condition
             call    #i2c_stop
 
@@ -350,6 +352,41 @@ rotate_address:
         ret                              ; Return from subroutine
 
 ;------------------------------------------------------------------------------
+; i2c_tx_byte Subroutine: Send 'transmit_value' over i2c line
+;------------------------------------------------------------------------------
+i2c_tx_byte:
+
+        mov.b   &transmit_value, R14    	; move transmit_value to R14 so it can be shifted out
+
+        mov     #8d, R15                  	; set loop for 8 counts to shift all eight bits out
+
+i2c_tx_byte_loop:
+        bit.b   #BIT7, R14					; check the MSB of R14
+        jnz     i2c_tx_byte_send_1        	; if MSB is 1, send a 1
+        									; otherwise send a 0
+
+		call	#i2c_tx_0	; transmit 0
+
+        jmp     i2c_tx_byte_rotate			; rotate R14 to prepare for next loop
+
+i2c_tx_byte_send_1:
+        call    #i2c_tx_1	; transmit 1
+
+i2c_tx_byte_rotate:
+        rlc.b   R14                      	; rotate left w carry, so next loop can grab next bit
+
+        dec     R15                      	; decrement loop counter
+        jnz     i2c_tx_byte_loop        	; loop through all 8 bits
+
+        call	#i2c_rx_ack					; receive acknowledge from slave
+        bit.b	#BIT0, &acknowledge
+
+        jnz		i2c_tx_byte					; acknowledge not received, repeat subroutine
+        									; otherwise, ackowledge received, terminate subroutine
+
+        ret
+
+;------------------------------------------------------------------------------
 ; main_delay Subroutine (TESTING)
 ;------------------------------------------------------------------------------
 main_delay:
@@ -383,3 +420,15 @@ acknowledge:                        ; Yes I know it's a whole byte but I'm prett
 
 device_address:
         .byte   0x68                ; Default address for our DS3231
+
+target_register:
+		.byte	0					; which register should an i2c read or write operation target
+
+new_value:
+		.byte	0					; what value should be written during an i2c write operation
+
+transmit_value:
+		.byte	0x69				; what value should tx_byte transmit
+
+output_value:
+		.byte	0					; output of i2c read operation
