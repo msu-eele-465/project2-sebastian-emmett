@@ -75,9 +75,14 @@ main:
 
             ; Call send_address and call tx_1 (temp until we get i2c_send_write_bit), then call rx_ack. Should be seen as D1 (11010001) with a nack
             call    #i2c_send_address
-            call    #i2c_send_write_bit
+            call    #i2c_send_read_bit
 
-            call	#i2c_tx_byte
+            bit.b	#BIT0, &acknowledge
+	        jnz		main_stop						; acknowledge not received, repeat main
+
+            call	#i2c_rx_byte
+
+main_stop:
 
             ; Generate I2C Stop Condition
             call    #i2c_stop
@@ -265,10 +270,9 @@ i2c_rx_ack:
         ;   10. Configure SDA back to output.
 
         ; 1. Configure SDA as input
-        bic.b   #BIT1, &P6DIR    ; Set P6.1 as input
-
-        ; 2. Release SDA (set high)
-        bis.b   #BIT1, &P6OUT    ; Release SDA (set high)
+        bic.b	#BIT1, &P6DIR	; set as input
+		bis.b	#BIT1, &P6REN	; enable resistor
+		bis.b	#BIT1, &P6OUT	; pull-up resistor
 
         ; 3. Call i2c_sda_delay
         call    #i2c_sda_delay
@@ -303,7 +307,8 @@ ACK_DONE:
         call    #i2c_scl_delay
 
         ; 10. Configure SDA back to output
-        bis.b   #BIT1, &P6DIR     ; Set P6.1 as output
+        bis.b	#BIT1, &P6DIR	; set as output
+        bic.b	#BIT1, &P6REN	; disable resistor (not sure if this needs to be disabled)
 
         ret                       ; Return from subroutine
 
@@ -408,7 +413,7 @@ i2c_rx_byte_loop:
         bis.b   #BIT0, &P6OUT
         call    #i2c_scl_delay
 
-        bit.b   #BIT1, &P6DIR				; check the value of SDA
+        bit.b   #BIT1, &P6IN				; check the value of SDA
         jz     	i2c_rx_byte_noinc       	; if SDA is 1, increment R14
         									; otherwise don't
 
