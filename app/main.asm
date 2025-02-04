@@ -527,13 +527,11 @@ i2c_read_stop:
         ret
 
 ;------------------------------------------------------------------------------
-; i2c_write Subroutine: Write a byte to the desired register
+; i2c_write_start Subroutine: Select a register to start an i2c write operation on
 ;
-; device_address, target_register, and new_value should be set up before calling this
-;
-; new_value will contain the byte to write to the register
+; device_address and target_register should be set up before calling this
 ;------------------------------------------------------------------------------
-i2c_write:
+i2c_write_start:
 i2c_write_header_write:
 
     	; generate I2C start condition
@@ -557,6 +555,29 @@ i2c_write_continue:
 
 		call	#i2c_tx_byte				; send register to write to
 
+		ret
+
+;------------------------------------------------------------------------------
+; i2c_write_transmit Subroutine: Send a byte to the current register
+;
+; new_value should be setup and contain the byte to write to the register
+;------------------------------------------------------------------------------
+
+i2c_write_transmit
+		; write to register
+		mov.b	new_value, transmit_value	; prepare to send desired value
+
+		call	#i2c_tx_byte				; send value to register
+
+        ret
+
+;------------------------------------------------------------------------------
+; i2c_write_transmit_and_stop Subroutine: Send a byte to the current register and stop writing
+;
+; new_value should be setup and contain the byte to write to the register
+;------------------------------------------------------------------------------
+
+i2c_write_transmit_and_stop
 		; write to register
 		mov.b	new_value, transmit_value	; prepare to send desired value
 
