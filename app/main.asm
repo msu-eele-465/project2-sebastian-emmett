@@ -59,18 +59,12 @@ init:
 ; Main loop
 ;------------------------------------------------------------------------------
 main:
+    ; (Optional) Set the I2C device address here if you want something 
+    ; different than the default 0x68 in 'device_address'.
+    ; mov.b   #0x50, &device_address
 
-			call	#i2c_read
-			call	#i2c_write
-
-main_stop:
-
-            ; Delay again (for visibility)
-            call    #main_delay
-
-            ; Repeat
-            jmp     main
-            nop
+    ; Call the new subroutine to send out 'my_data'
+    call    #generic_transmit
 
 ;------------------------------------------------------------------------------
 ; HEARTBEAT : Timer0_B0 : Interrupt Service Routine
@@ -566,6 +560,49 @@ i2c_write_continue:
         ret
 
 ;------------------------------------------------------------------------------
+; generic_transmit Subroutine #NOT WORKING :(
+; Sends all bytes in my_data (length in my_data_length)
+;------------------------------------------------------------------------------
+generic_transmit:
+i2c_gentx_header_write:
+    ; 1. Generate start condition
+    call    #i2c_start
+
+    ; 2. Send 7-bit address + write bit
+    call    #i2c_send_address
+    call    #i2c_send_write_bit       ; sets the R/W bit = 0 (write)
+    
+    ; Check ACK (acknowledge is stored in &acknowledge; BIT0=1 => NACK, BIT0=0 => ACK)
+    bit.b   #BIT0, &acknowledge
+    jz      i2c_gentx_continue        ; If ACK received, continue sending data
+
+    ; If NACK, stop and retry
+    call    #i2c_stop
+    jmp     i2c_gentx_header_write
+
+i2c_gentx_continue:
+    ; 3. Transmit all bytes in my_data
+    mov.w   &my_data_length, R14      ; R14 = number of bytes to send
+    cmp     #0, R14
+    jeq     i2c_gentx_done            ; If length=0, skip
+
+    mov     #my_data, R15            ; R15 points to the start of my_data
+
+i2c_gentx_loop:
+    mov.b   @R15+, &transmit_value   ; Move next byte into transmit_value
+    call    #i2c_tx_byte             ; Send that byte (i2c_tx_byte handles ACK internally)
+
+    ; Decrement our byte counter
+    dec     R14
+    jnz     i2c_gentx_loop           ; Loop until all bytes are sent
+
+i2c_gentx_done:
+    ; 4. Generate stop condition
+    call    #i2c_stop
+
+    ret
+
+;------------------------------------------------------------------------------
 ; main_delay Subroutine (TESTING)
 ;------------------------------------------------------------------------------
 main_delay:
@@ -611,3 +648,9 @@ transmit_value:
 
 output_value:
 		.byte	0					; output of i2c read operation
+
+my_data:
+    .byte  0x12, 0x34, 0x56, 0x78
+
+my_data_length:
+    .word  4
