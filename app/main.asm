@@ -59,12 +59,21 @@ init:
 ; Main loop
 ;------------------------------------------------------------------------------
 main:
+read_time:
+			mov.b	#00h, target_register			; set starting register to 0 (seconds)
+			call	#i2c_read_start					; begin i2c read operation
 
-			call	#i2c_write_start
-			mov.b	#01h, new_value
-			call	#i2c_write_transmit
-			mov.b	#02h, new_value
-			call	#i2c_write_transmit_and_stop
+			; read seconds
+			call	#i2c_read_receive
+			mov.b	output_value, R5
+
+			; read minutes
+			call	#i2c_read_receive
+			mov.b	output_value, R6
+
+			; read hours
+			call	#i2c_read_receive_and_stop
+			mov.b	output_value, R7
 
 main_stop:
 
