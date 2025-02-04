@@ -469,34 +469,16 @@ i2c_send_write_bit:
         ret
 
 ;------------------------------------------------------------------------------
-; i2c_read Subroutine: Read a byte from the desired register
+; i2c_read_start Subroutine: Start an i2c read operation on the desired register
 ;
 ; device_address and target_register should be set up before calling this
 ;
 ; output_value will store the read value
 ;------------------------------------------------------------------------------
-i2c_read:
-i2c_read_header_write:
+i2c_read_start:
 
-    	; generate I2C start condition
-        call    #i2c_start
-
-		; send i2c header information for write operation
-        call    #i2c_send_address
-        call    #i2c_send_write_bit
-
-        bit.b	#BIT0, &acknowledge			; verify acknowledge value
-        jz		i2c_read_register_select	; if acknowledged, continue
-        									; otherwise, resend the header after a stop condition
-
-        ; generate I2C stop condition, before resending the same header
-        call	#i2c_stop
-        jmp		i2c_read_header_write
-
-i2c_read_register_select:
-		mov.b	target_register, transmit_value		; prepare to send desired register to read from
-
-		call	#i2c_tx_byte				; send register to read from
+    	; select the register to read from
+        call    #i2c_write_start			; use i2c_write_start to select the register
 		call	#i2c_stop					; end write operation
 
 i2c_read_header_read:
@@ -508,21 +490,43 @@ i2c_read_header_read:
         call    #i2c_send_read_bit
 
         bit.b	#BIT0, &acknowledge			; verify acknowledge value
-        jz		i2c_read_register_read		; if acknowledged, continue
+        jz		i2c_read_continue			; if acknowledged, continue
         									; otherwise, resend the header after a stop condition
 
         ; generate I2C stop condition, before resending the same header
         call	#i2c_stop
         jmp		i2c_read_header_read
 
-i2c_read_register_read:
+i2c_read_continue:
+
+		ret
+
+
+;------------------------------------------------------------------------------
+; i2c_read_receive Subroutine: Read one byte from the current register and prepare for more
+;
+; i2c_read_start should be called before this subroutine
+;
+; output_value will store the read value
+;------------------------------------------------------------------------------
+i2c_read_receive
         call    #i2c_rx_byte				; read value from register
-        call    #i2c_tx_nack				; transmit NACK, since we only want 1 register's value
+        call    #i2c_tx_ack					; transmit ACK, since we will want more data
 
-i2c_read_stop:
+        ret
 
-		; generate I2C stop condition
-        call    #i2c_stop
+;------------------------------------------------------------------------------
+; i2c_read_receive_and_stop Subroutine: Read one byte from the current register and end read operation
+;
+; i2c_read_start should be called before this subroutine
+;
+; output_value will store the read value
+;------------------------------------------------------------------------------
+i2c_read_receive_and_stop
+        call    #i2c_rx_byte				; read value from register
+        call    #i2c_tx_nack				; transmit NACK, since we want no more data
+
+        call    #i2c_stop					; generate I2C stop condition to end read operation
 
         ret
 
@@ -559,6 +563,8 @@ i2c_write_continue:
 
 ;------------------------------------------------------------------------------
 ; i2c_write_transmit Subroutine: Send a byte to the current register
+;
+; i2c_write_start should be called before this subroutine
 ;
 ; new_value should be setup and contain the byte to write to the register
 ;------------------------------------------------------------------------------
