@@ -60,8 +60,11 @@ init:
 ;------------------------------------------------------------------------------
 main:
 
-			call	#i2c_read
-			call	#i2c_write
+			call	#i2c_write_start
+			mov.b	#01h, new_value
+			call	#i2c_write_transmit
+			mov.b	#02h, new_value
+			call	#i2c_write_transmit_and_stop
 
 main_stop:
 
@@ -551,7 +554,7 @@ i2c_write_header_write:
 
         ; generate I2C stop condition, before resending the same header
         call	#i2c_stop
-        jmp		i2c_read_header_write
+        jmp		i2c_write_header_write
 
 i2c_write_continue:
 		; set up register
