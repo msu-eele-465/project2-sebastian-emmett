@@ -59,6 +59,22 @@ init:
 ; Main loop
 ;------------------------------------------------------------------------------
 main:
+init_rtc:
+			mov.b	#068h, device_address			; device address of rtc is #068h
+
+			; set time to 11:02:30 (for an arbitrary reason)
+			mov.b	#000h, target_register			; set starting register to 0 (seconds)
+			call	#i2c_write_start				; begin writing
+
+			mov.b	#030h, new_value				; 30 seconds
+			call	#i2c_write_transmit
+
+			mov.b	#002h, new_value				; 2 minutes
+			call	#i2c_write_transmit
+
+			mov.b	#011h, new_value				; 11 hours
+			call	#i2c_write_transmit_and_stop
+
 read_time:
 			mov.b	#00h, target_register			; set starting register to 0 (seconds)
 			call	#i2c_read_start					; begin i2c read operation
@@ -81,7 +97,7 @@ main_stop:
             call    #main_delay
 
             ; Repeat
-            jmp     main
+            jmp     read_time
             nop
 
 ;------------------------------------------------------------------------------
