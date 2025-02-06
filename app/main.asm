@@ -637,8 +637,72 @@ read_temperature:
         mov.b   output_value, &temp_lsb
 
         ; We can do the temp conversion here if we want to store it some other way. #TODO
+        ; okay so I did it real quick but idk if it works lmao
+        call    #decode_temperature
 
         ret
+
+;------------------------------------------------------------------------------
+; decode_temperature Subroutine
+;------------------------------------------------------------------------------
+;
+; Input:
+;   - temp_msb (byte in memory at &temp_msb)
+;   - temp_lsb (byte in memory at &temp_lsb)
+;     * bits [7..6] are fractional portion, i.e. 0.25°C increments
+;     * bit 7 of temp_msb is the sign bit (two's comp)
+;
+; Output:
+;   - R8 (16-bit). The lower 10 bits contain the sign-extended result.
+;     Each unit = 0.25°C.
+;     Positive or negative properly sign-extended.
+;
+; Example:
+;   MSB=0x19 (0001_1001), LSB=0x40 (0100_0000 => fractional bits=01)
+;   => +25.25°C => R8 = 25 * 4 + 1 = 101 decimal = 0x0065
+;   If MSB had bit 7 set => negative temperature => sign-extended.
+;
+;------------------------------------------------------------------------------
+decode_temperature:
+    ; 1. Load raw bytes into registers R14 and R15
+    mov.b   &temp_msb, R14
+    mov.b   &temp_lsb, R15
+
+    ; 2. Shift the MSB left by 2 bits.
+    ;    That moves the integer portion to bits [8..2] and the sign bit to bit 9.
+    rla.w   R14             ; Shift left by 1
+    rla.w   R14             ; Shift left by another 1  => total of 2 bits
+
+    ; 3. Isolate the 2 fractional bits from temp_lsb by shifting them right 6 times.
+    ;    That puts them into bits [1..0] of R15. We only need 2 bits, but DS3231 docs say
+    ;    those are bits [7..6], so we shift down 6 :D
+    mov     #6, R13
+dt_shift_lsb:
+    rra.b   R15             ; shift right
+    dec     R13
+    jnz     dt_shift_lsb
+
+    ; 4. Combine those 2 fractional bits into the low 2 bits of R14.
+    or.b    R15, R14
+
+    ; 5. Sign-extend if negative
+    ;    Check bit7 of temp_msb (the original sign bit).
+    ;    If set => temperature is negative => we set the upper 6 bits of R14 to 1.
+    bit.b   #0x80, &temp_msb
+    jz      dt_done         ; if 0 => not negative, skip sign extension
+
+    ; Negative => set bits [15..10] = 1
+    ; because bit9 is the sign bit after shifting,
+    ; so we set all bits above bit9 to 1 => 0xFC00
+    bis.w   #0xFC00, R14
+
+dt_done:
+    ; 6. Store final 16-bit result in R12
+    ;    (Each increment is 0.25°C)
+    mov.w   R14, R12
+
+    ; Return
+    ret
 
 ;------------------------------------------------------------------------------
 ; main_delay Subroutine (TESTING)
