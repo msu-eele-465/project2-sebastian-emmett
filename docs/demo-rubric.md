@@ -158,7 +158,7 @@
     <td >2.5</td>
   </tr>
   <tr>
-    <td >Hours, minutes, and seconds were saved in memory</td>
+    <td >Extra credit: Hours, minutes, and seconds were saved in memory</td>
     <td >1</td>
     <td >Team did not accomplish</td>
     <td >0</td>
@@ -170,7 +170,7 @@
     <td ></td>
   </tr>
   <tr>
-    <td >Set RTC’s time close to the actual time</td>
+    <td >Extra credit: Set RTC’s time close to the actual time</td>
     <td >2</td>
     <td >Team did not accomplish</td>
     <td ></td>
@@ -182,7 +182,7 @@
     <td ></td>
   </tr>
   <tr>
-    <td >Convert and save temperature as an ascii string</td>
+    <td >Extra credit: Convert and save temperature as an ascii string</td>
     <td >5</td>
     <td >Team did not accomplish</td>
     <td ></td>
@@ -194,7 +194,7 @@
     <td ></td>
   </tr>
   <tr>
-    <th  colspan="10"><b>Presentation</b></th>
+    <th colspan="10"><b>Presentation</b></th>
   </tr>
   <tr>
     <td >(ONLY score if student presented this).. Effective use of circuit digram</td>
