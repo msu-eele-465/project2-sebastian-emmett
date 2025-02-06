@@ -91,6 +91,9 @@ read_time:
 			call	#i2c_read_receive_and_stop
 			mov.b	output_value, R7
 
+            ; read temp
+            call    #read_temperature
+
 main_stop:
 
             ; Delay again (for visibility)
@@ -620,6 +623,23 @@ i2c_write_transmit_and_stop
 
         ret
 
+read_temperature:
+        ; We want to read from register 0x11 (MSB) and 0x12 (LSB)
+        mov.b   #0x11, target_register
+        call    #i2c_read_start
+
+        ; Read the MSB (integer portion + sign bit)
+        call    #i2c_read_receive
+        mov.b   output_value, &temp_msb
+
+        ; Read the LSB (fractional bits in upper nibble)
+        call    #i2c_read_receive_and_stop
+        mov.b   output_value, &temp_lsb
+
+        ; We can do the temp conversion here if we want to store it some other way. #TODO
+
+        ret
+
 ;------------------------------------------------------------------------------
 ; main_delay Subroutine (TESTING)
 ;------------------------------------------------------------------------------
@@ -666,3 +686,9 @@ transmit_value:
 
 output_value:
 		.byte	0					; output of i2c read operation
+
+temp_msb:
+        .byte   0
+
+temp_lsb:
+        .byte   0
