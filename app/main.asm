@@ -91,6 +91,13 @@ read_time:
 			call	#i2c_read_receive_and_stop
 			mov.b	output_value, R7
 
+
+
+			mov.b	#00h, target_register
+			mov.b	#test_buffer, bytes_buffer
+			mov.b	#01d, bytes_buffer_size
+			call	#i2c_read_arbitrary
+
 main_stop:
 
             ; Delay again (for visibility)
@@ -621,6 +628,43 @@ i2c_write_transmit_and_stop
         ret
 
 ;------------------------------------------------------------------------------
+; i2c_read_arbitrary Subroutine: Receive bytes_buffer_size bytes from i2c and store in
+;	the location pointed to by bytes_buffer
+;
+; bytes_buffer, bytes_buffer_size, device_address and target_register should be set up before calling this
+;------------------------------------------------------------------------------
+i2c_read_arbitrary:
+		mov.b	#00h, target_register			; set starting register to 0 (seconds)
+		call	#i2c_read_start					; begin i2c read operation
+
+		mov.w	bytes_buffer, R12				; store location of buffer
+		mov.b	bytes_buffer_size, R11			; store amount of bytes to read in
+
+		; preemptively decrement by one so the last byte is not sent by the loop
+		; if R11 == 1 beforehand then skip the loop altogether
+		dec.b	R11
+		jz		i2c_read_arbitrary_last
+
+i2c_read_arbitrary_loop:
+
+		; read next register and store in buffer
+		call	#i2c_read_receive
+		mov.b	output_value, 0(R12)			; copy into first byte pointed to by R12
+		inc.b	R12								; increment R12 pointer by one byte
+
+		; test condition
+		dec.b	R11
+		jnz		i2c_read_arbitrary_loop			; if the last byte is not sent repeat loop
+												; otherwise, send the last byte
+
+i2c_read_arbitrary_last:
+		; read next register, store in buffer, and terminate read operation
+		call	#i2c_read_receive_and_stop
+		mov.b	output_value, 0(R12)			; copy into first byte pointed to by R12
+
+		ret
+
+;------------------------------------------------------------------------------
 ; main_delay Subroutine (TESTING)
 ;------------------------------------------------------------------------------
 main_delay:
@@ -648,6 +692,7 @@ delay_loop_main:
 ; Data Section: Define Variables :D
 ;------------------------------------------------------------------------------
         .sect   .data
+        .retain
         .global acknowledge
 acknowledge:                        ; Yes I know it's a whole byte but I'm pretty sure a bit would be allocated the same space iirc
         .byte   0                   ; Initialize 'acknowledge' to 0 since nothing has been recieved yet
@@ -666,3 +711,14 @@ transmit_value:
 
 output_value:
 		.byte	0					; output of i2c read operation
+
+bytes_buffer:
+		.short	0					; a buffer to either write out or read in through i2c
+									; the value stored here should be a pointer to the buffer being used (reserved memory)
+
+bytes_buffer_size:
+		.byte	0					; an amount of bytes to read/write out through i2c
+									; to prevent overflow this should not exceed the bytes_buffers' size
+
+test_buffer:
+		.byte	1, 2, 3, 4, 5, 6	; a buffer for use by i2c arbitrary read/write
