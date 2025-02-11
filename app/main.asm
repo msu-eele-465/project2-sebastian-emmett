@@ -91,6 +91,34 @@ read_time:
 			call	#i2c_read_receive_and_stop
 			mov.b	output_value, R7
 
+
+			; test_buffer will likely increment throughout the program due to the seconds incrementing
+			; write arbitrary [6]
+			mov.b	#000h, target_register
+			mov.w	#test_buffer, bytes_buffer
+			mov.b	#06d, bytes_buffer_size
+			call	#i2c_write_arbitrary
+
+			; write arbitrary [3]
+			mov.b	#03d, bytes_buffer_size
+			call	#i2c_write_arbitrary
+
+			; write arbitrary [1]
+			mov.b	#01d, bytes_buffer_size
+			call	#i2c_write_arbitrary
+
+			; read arbitrary [6]
+			mov.b	#06d, bytes_buffer_size
+			call	#i2c_read_arbitrary
+
+			; read arbitrary [3]
+			mov.b	#03d, bytes_buffer_size
+			call	#i2c_read_arbitrary
+
+			; read arbitrary [1]
+			mov.b	#01d, bytes_buffer_size
+			call	#i2c_read_arbitrary
+
 main_stop:
 
             ; Delay again (for visibility)
@@ -99,16 +127,6 @@ main_stop:
             ; Repeat
             jmp     read_time
             nop
-
-;------------------------------------------------------------------------------
-; HEARTBEAT : Timer0_B0 : Interrupt Service Routine
-;------------------------------------------------------------------------------
-TIMER0_B0_ISR:
-        ; Toggle P1.0
-        xor.b   #BIT0, &P1OUT
-
-        ; Return from interrupt
-        reti
 
 ;------------------------------------------------------------------------------
 ; i2c_sda_delay Subroutine
@@ -621,6 +639,77 @@ i2c_write_transmit_and_stop
         ret
 
 ;------------------------------------------------------------------------------
+; i2c_read_arbitrary Subroutine: Receive bytes_buffer_size bytes from i2c and store in
+;	the location pointed to by bytes_buffer
+;
+; bytes_buffer, bytes_buffer_size, device_address and target_register should be set up before calling this
+;------------------------------------------------------------------------------
+i2c_read_arbitrary:
+		call	#i2c_read_start					; begin i2c read operation
+
+		mov.w	bytes_buffer, R11				; store location of buffer
+		mov.b	bytes_buffer_size, R10			; store amount of bytes to read in
+
+		; preemptively decrement by one so the last byte is not received by the loop
+		; if R10 == 1 beforehand then skip the loop altogether
+		dec.b	R10
+		jz		i2c_read_arbitrary_last
+
+i2c_read_arbitrary_loop:
+
+		; read next register and store in buffer
+		call	#i2c_read_receive
+		mov.b	output_value, 0(R11)			; copy into first byte pointed to by R11
+		inc.b	R11								; increment R11 pointer by one byte
+
+		; test condition
+		dec.b	R10
+		jnz		i2c_read_arbitrary_loop			; if the second to last byte is not received repeat loop
+												; otherwise, receive the last byte
+
+i2c_read_arbitrary_last:
+		; read next register, store in buffer, and terminate read operation
+		call	#i2c_read_receive_and_stop
+		mov.b	output_value, 0(R11)			; copy into first byte pointed to by R12
+
+		ret
+
+;------------------------------------------------------------------------------
+; i2c_write_arbitrary Subroutine: Transmit bytes_buffer_size bytes through i2c and use
+;	the location pointed to by bytes_buffer to acquire transmit data
+;
+; bytes_buffer, bytes_buffer_size, device_address and target_register should be set up before calling this
+;------------------------------------------------------------------------------
+i2c_write_arbitrary:
+		call	#i2c_write_start				; begin i2c write operation
+
+		mov.w	bytes_buffer, R11				; store location of buffer
+		mov.b	bytes_buffer_size, R10			; store amount of bytes to read in
+
+		; preemptively decrement by one so the last byte is not sent by the loop
+		; if R10 == 1 beforehand then skip the loop altogether
+		dec.b	R10
+		jz		i2c_write_arbitrary_last
+
+i2c_write_arbitrary_loop:
+
+		; transmit next byte
+		mov.b	@R11+, new_value				; prepare new value and increment pointer value
+		call	#i2c_write_transmit
+
+		; test condition
+		dec.b	R10
+		jnz		i2c_write_arbitrary_loop		; if the second to last byte is not sent repeat loop
+												; otherwise, send the last byte
+
+i2c_write_arbitrary_last:
+		; transmit last value and terminate write operation
+		mov.b	@R11, new_value
+		call	#i2c_write_transmit_and_stop
+
+		ret
+
+;------------------------------------------------------------------------------
 ; main_delay Subroutine (TESTING)
 ;------------------------------------------------------------------------------
 main_delay:
@@ -636,19 +725,12 @@ delay_loop_main:
         ret                      ; Return from subroutine
 
 ;------------------------------------------------------------------------------
-; Interrupt Vectors
-;------------------------------------------------------------------------------
-        .sect   RESET_VECTOR
-        .short  RESET
-
-        .sect   TIMER0_B0_VECTOR
-        .short  TIMER0_B0_ISR
-
-;------------------------------------------------------------------------------
 ; Data Section: Define Variables :D
 ;------------------------------------------------------------------------------
-        .sect   .data
-        .global acknowledge
+
+        .data
+        .retain
+
 acknowledge:                        ; Yes I know it's a whole byte but I'm pretty sure a bit would be allocated the same space iirc
         .byte   0                   ; Initialize 'acknowledge' to 0 since nothing has been recieved yet
 
@@ -659,10 +741,40 @@ target_register:
 		.byte	0					; which register should an i2c read or write operation target
 
 new_value:
-		.byte	10					; what value should be written during an i2c write operation
+		.byte	0					; what value should be written during an i2c write operation
 
 transmit_value:
-		.byte	0x42				; what value should tx_byte transmit
+		.byte	0					; what value should tx_byte transmit
 
 output_value:
 		.byte	0					; output of i2c read operation
+
+bytes_buffer:
+		.short	0					; a buffer to either write out or read in through i2c
+									; the value stored here should be a pointer to the buffer being used (reserved memory)
+
+bytes_buffer_size:
+		.byte	0					; an amount of bytes to read/write out through i2c
+									; to prevent overflow this should not exceed the bytes_buffers' size
+
+test_buffer:
+		.byte	1, 2, 3, 4, 5, 6	; a buffer for use by i2c arbitrary read/write
+
+;------------------------------------------------------------------------------
+; HEARTBEAT : Timer0_B0 : Interrupt Service Routine
+;------------------------------------------------------------------------------
+TIMER0_B0_ISR:
+        ; Toggle P1.0
+        xor.b   #BIT0, &P1OUT
+
+        ; Return from interrupt
+        reti
+
+;------------------------------------------------------------------------------
+; Interrupt Vectors
+;------------------------------------------------------------------------------
+        .sect   RESET_VECTOR
+        .short  RESET
+
+        .sect   TIMER0_B0_VECTOR
+        .short  TIMER0_B0_ISR
