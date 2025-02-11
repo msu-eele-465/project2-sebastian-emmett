@@ -118,8 +118,8 @@ read_time:
 			mov.b	#01d, bytes_buffer_size
 			call	#i2c_read_arbitrary
       
-      ; read temp
-      call    #read_temperature
+      		; read temp
+	      	call    #read_temperature
 
 main_stop:
 
@@ -839,10 +839,11 @@ output_value:
 		.byte	0					; output of i2c read operation
 
 temp_msb:
-        .byte   0
+        .byte   0					; most significant byte of temperature, each bit is 1 deg C
 
 temp_lsb:
-        .byte   0
+        .byte   0					; least significant byte of temperature, bit 7 and 6 are beyond the decimal point
+        							; and represent a portion of a deg C
 
 bytes_buffer:
 		.short	0					; a buffer to either write out or read in through i2c
